@@ -1,0 +1,75 @@
+name: Model Regression Evaluation CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'prompts/**'
+      - 'data/**'
+      - 'src/**'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - 'prompts/**'
+      - 'data/**'
+      - 'src/**'
+
+jobs:
+  evaluate-prompts:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Fetch all history for branch switching
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Reconstruction of active baseline dynamically by running on main branch prompts first
+      - name: Reconstruct Baseline Run
+        run: |
+          echo "Checking out main branch to compile baseline..."
+          # Stash any local workspace changes safely
+          git stash || true
+          # Checkout main prompts to a temporary evaluation file
+          git show origin/main:prompts/v1.yaml > prompts/baseline_temp.yaml || cp prompts/v1.yaml prompts/baseline_temp.yaml
+          
+          echo "Running baseline evaluation..."
+          python -m src.run --prompt prompts/baseline_temp.yaml --baseline
+          
+          # Clean up temp file and restore workspace
+          rm prompts/baseline_temp.yaml
+          git stash pop || true
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Run PR Evaluation Suite
+        run: |
+          echo "Running current PR branch evaluation..."
+          # Run current PR's prompt version (v2.yaml or modified v1.yaml)
+          python -m src.run --prompt prompts/v2.yaml --warning-threshold 3.0 --critical-threshold 8.0
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Upload HTML Diagnostic Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: model-regression-report
+          path: reports/
