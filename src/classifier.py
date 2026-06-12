@@ -118,6 +118,10 @@ async def classify_email(
         
         # Safely parse content string
         content_str = response.choices[0].message.content or ""
+        if content_str.startswith("```json"):
+            content_str = content_str[7:]
+        if content_str.endswith("```"):
+            content_str = content_str[:-3]
         content_str = content_str.strip()
         
         parsed_output = ClassifierOutput.model_validate_json(content_str)
