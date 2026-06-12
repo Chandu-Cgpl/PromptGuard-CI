@@ -5,7 +5,7 @@ import asyncio
 import hashlib
 from typing import List, Dict, Any, Optional, Tuple
 from pydantic import BaseModel, Field
-import openai
+import litellm
 
 from src.config import PromptConfig, TestCase, TestResult, EvalRun
 from src.classifier import classify_email, IS_MOCK
@@ -79,15 +79,14 @@ Ensure your score is a float or integer between 1.0 and 5.0.
 """
 
     try:
-        client_instance = client or openai.AsyncOpenAI()
-        response = await client_instance.chat.completions.create(
+        response = await litellm.acompletion(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a precise AI evaluator."},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.0,
-            response_format={"type": "json_object"},
+            response_format=JudgeOutput,
             max_tokens=200
         )
         content_str = response.choices[0].message.content or ""
