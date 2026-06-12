@@ -1,0 +1,10 @@
+version: "2.0.0"
+timestamp: "2026-06-12T10:15:00Z"
+model: "gpt-4o-mini"
+temperature: 0.1
+system_prompt: |
+  Categorize this customer email into one of these: billing, technical, account, general.
+  Also, write a summary of the email.
+  Output should be JSON.
+
+few_shot_examples: []
