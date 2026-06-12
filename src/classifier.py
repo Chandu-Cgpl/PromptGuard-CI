@@ -3,7 +3,7 @@ import time
 import json
 import asyncio
 from typing import Dict, Any, Optional
-import openai
+import litellm
 from src.config import PromptConfig, ClassifierOutput
 
 # Check if we should run in Mock mode
@@ -105,13 +105,12 @@ async def classify_email(
             
         messages.append({"role": "user", "content": email_text})
         
-        # Use OpenAI client
-        client_instance = client or openai.AsyncOpenAI()
-        response = await client_instance.chat.completions.create(
+        # Use LiteLLM acompletion
+        response = await litellm.acompletion(
             model=config.model,
             messages=messages,
             temperature=config.temperature,
-            response_format={"type": "json_object"},
+            response_format=ClassifierOutput,
             max_tokens=250
         )
         
@@ -119,10 +118,6 @@ async def classify_email(
         
         # Safely parse content string
         content_str = response.choices[0].message.content or ""
-        if content_str.startswith("```json"):
-            content_str = content_str[7:]
-        if content_str.endswith("```"):
-            content_str = content_str[:-3]
         content_str = content_str.strip()
         
         parsed_output = ClassifierOutput.model_validate_json(content_str)
